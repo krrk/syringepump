@@ -5,6 +5,13 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
+def initPumps(port=0,N=1):
+    pumps = []
+    ser   = serial.Serial(port, baudrate=9600, stopbits=2)
+    for i in range(N):
+        pumps.append(Model44(ser,i))
+    return pumps
+
 class Model44(object):
     prompts = {
         b':': 'stopped',
@@ -17,13 +24,20 @@ class Model44(object):
     ranges = [ 'uL/min', 'mL/min', 'uL/hr' , 'mL/hr' ]
 
     def __init__(self, port=0, number=0):
-        self.port  = serial.Serial(port, baudrate=9600, stopbits=2)
         self.pumpN = str(number)
         try:
+            if not port.isOpen():
+                port.open()
+            self.port = port
+        except AttributeError:
+            self.port = serial.Serial(port, baudrate=9600, stopbits=2)
+        
+        try:
             ver = self.get_version()
-            logging.info('Connected to version {} Model44'.format(ver))
         except:
             self.last_status = 'stopped'
+        finally:
+            logging.info('Connected to version {} Model44'.format(ver))
 
     def _write(self, cmd):
         logging.debug('write: {}'.format(cmd))

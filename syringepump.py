@@ -7,11 +7,10 @@ from PyQt5.QtWidgets import (QAbstractSpinBox, QComboBox, QDoubleSpinBox, QFrame
 # a QWidget without a parent is just a window
 
 class pump(QWidget):
-    def __init__(self, pumpNumber, parent=None):
+    def __init__(self, pumpBackend, parent=None):
         super(pump, self).__init__(parent)
 
-        from interface import Model44
-        self.pump = Model44('/dev/tty.usbserial',pumpNumber)
+        self.pump = pumpBackend
 
         statusLabel = QLabel('Status:')
         flowRateLabel = QLabel('Flow Rate:')
@@ -81,7 +80,7 @@ class pump(QWidget):
         mainLayout.addLayout(setSyringeDiaLayout)
 
         self.setLayout(mainLayout)
-        self.setWindowTitle('Pump {}'.format(str(pumpNumber)))
+        self.setWindowTitle('Pump {}'.format(self.pump.pumpN))
     
     def update_status(self):
         self.status.setText(self.pump.get_status())
@@ -105,9 +104,10 @@ class pump(QWidget):
 class Controller(QWidget):
     def __init__(self, parent=None):
         super(Controller, self).__init__(parent)
-       
-        pump0 = pump(0)
-        pump1 = pump(1)
+
+        import interface
+        pumpBackends = interface.initPumps('COM3',2)
+        pump0, pump1 = [pump(i) for i in pumpBackends]
 
         timer = QTimer(self)
         timer.timeout.connect(pump0.update_status)
