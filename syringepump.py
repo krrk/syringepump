@@ -6,9 +6,9 @@ from PyQt5.QtWidgets import (QAbstractSpinBox, QComboBox, QDoubleSpinBox, QFrame
 # QWidget is the base class of all user interface objects, super returns a proxy object
 # a QWidget without a parent is just a window
 
-class pump(QWidget):
+class Pump(QWidget):
     def __init__(self, pumpBackend, parent=None):
-        super(pump, self).__init__(parent)
+        super(Pump, self).__init__(parent)
 
         self.pump = pumpBackend
 
@@ -102,25 +102,27 @@ class pump(QWidget):
         self.update_status()
 
 class Controller(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, N=1, parent=None):
         super(Controller, self).__init__(parent)
 
         import interface
-        pumpBackends = interface.initPumps('COM3',2)
-        pump0, pump1 = [pump(i) for i in pumpBackends]
+        pumpBackends = interface.initPumps('COM3',N)
+        pumps = [Pump(i) for i in pumpBackends]
 
         timer = QTimer(self)
-        timer.timeout.connect(pump0.update_status)
-        timer.timeout.connect(pump1.update_status)
+        for pump in pumps:
+            timer.timeout.connect(pump.update_status)
+
         timer.start(1000)
 
         divider = QFrame()
         divider.setFrameShape(QFrame.VLine)
         
         mainLayout = QHBoxLayout()
-        mainLayout.addWidget(pump0)
-        mainLayout.addWidget(divider)
-        mainLayout.addWidget(pump1)
+        mainLayout.addWidget(pumps[0])
+        for pump in pumps[1:]:
+            mainLayout.addWidget(divider)
+            mainLayout.addWidget(pump)
 
         self.setLayout(mainLayout)
         self.setWindowTitle("Syringe Pump Controller")
@@ -131,7 +133,7 @@ if __name__ == '__main__':
     
     app = QApplication(sys.argv) # Create an application
 
-    window = Controller()
+    window = Controller(2)
     window.show() # display the window on the screen and create an event loop
 
     sys.exit(app.exec_()) # ensures a clean exit freeing all memory when the exit() handler is called or the widget is destroyed
