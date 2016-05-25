@@ -6,11 +6,18 @@ from PyQt5.QtWidgets import (QAbstractSpinBox, QComboBox, QDoubleSpinBox, QFrame
 # QWidget is the base class of all user interface objects, super returns a proxy object
 # a QWidget without a parent is just a window
 
+def unit_conversion_factor(fromUnit, toUnit):
+    prefix = {'m': 1, 'u': 1e-3, 'n': 1e-6}
+    timeInterval = {'hr': 1, 'min': 1/60, 'sec': 1/3600}
+    equiv = lambda Unit: prefix[Unit[0]] / timeInterval[Unit.split('/')[1]]
+    return equiv(fromUnit)/equiv(toUnit)
+    
 class Pump(QWidget):
     def __init__(self, pumpBackend, parent=None):
         super(Pump, self).__init__(parent)
 
         self.pump = pumpBackend
+        self.setFlowRate, self.setFlowRateUnit = self.pump.get_flow_rate()
 
         statusLabel = QLabel('Status:')
         flowRateLabel = QLabel('Flow Rate:')
@@ -28,13 +35,13 @@ class Pump(QWidget):
         
         setFlowRateLabel = QLabel('Set Flow Rate:')
         self.flowSpinBox = QDoubleSpinBox()
-        self.flowSpinBox.setValue(self.pump.get_flow_rate()[0])
-        self.flowSpinBox.setMaximum(1000)
+        self.flowSpinBox.setValue(self.setFlowRate)
+        self.flowSpinBox.setMaximum(10000)
         self.flowSpinBox.setDecimals(3)
         self.flowRateUnit = QComboBox()
         self.flowRateUnit.setEditable(False)
-        self.flowRateUnit.addItems(['uL/min','mL/min','uL/hr','mL/hr'])
-        self.flowRateUnit.setCurrentText(self.pump.get_flow_rate()[1])
+        self.flowRateUnit.addItems(['nL/sec','uL/hr','uL/min','mL/hr','mL/min'])
+        self.flowRateUnit.setCurrentText(self.setFlowRateUnit)
 
         setSyringeDiaLabel = QLabel('Syringe Diameter:')
         self.syringeDiaSpinBox = QDoubleSpinBox()
@@ -93,9 +100,19 @@ class Pump(QWidget):
 
     def update_flow(self):
         value, unit = self.flowSpinBox.value(), self.flowRateUnit.currentText()
+        if unit != self.setFlowRateUnit:
+            convFactor = unit_conversion_factor(self.setFlowRateUnit, unit)
+            value *= convFactor
+            self.setFlowRate = value
+            self.setFlowRateUnit = unit
+            self.flowSpinBox.setValue(value)
+            
+        if unit == 'nL/sec':
+            value*=3600/1000
+            unit = 'uL/hr'
         self.pump.set_flow_rate(value, unit)
         self.update_status()
-
+        
     def update_dia(self):
         value = self.syringeDiaSpinBox.value()
         self.pump.set_diameter(value)
