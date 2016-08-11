@@ -164,30 +164,50 @@ class OpenScale(object):
         except AttributeError:
             self.port = serial.Serial(port, baudrate=115200)
 
-        self.port.timeout = 0.1
+        self.port.timeout = 0
+        logging.debug('Conncting to OpenScale')
+        self._wait_for_prompt(b'Readings:\r\n')
+       
         self.tare()
 
     def _write(self, cmd):
-        cmd = bytes(cmd)
         logging.debug('write: {}'.format(cmd))
         self.port.write(cmd)
 
-    def get_reading(self):
-        self._write('0')
-        self._update_reading(self.readline())
-        return self.last_force, self.last_unit, self.last_temp
+    def _wait_for_prompt(self, prompt=b'>'):
+        line = self.port.readline()
+        while line != prompt:
+            line = self.port.readline()
 
-    def _update_reading(self, line):
-        line = line.decode('utf-8')
+    def tare(self):
+        logging.debug('Tareing load cell')
+
+        # Enter menu
+        self._write(b'x')
+        self._wait_for_prompt(b'>')
+
+        # Run tare operation
+        self._write(b'1')
+        self._wait_for_prompt(b'>')
+        
+        # Exit menu
+        self._write(b'x')
+        self._wait_for_prompt(b'Exiting\r\n')
+        sleep(0.5)
+
+        if abs(self.get_reading()[0]) < 0.01:
+            logging.debug('Tared successfully')
+        else:
+            logging.debug('Tare unsuccessful')
+
+    def get_reading(self):
+        last_line = self.port.readlines()[-1]
+        line = last_line.decode('utf-8').split(',')
+
         self.last_timestamp = int(line[0])
         self.last_force = float(line[1])
         self.last_unit = line[2]
         self.last_temp = float(line[3])
+        
+        return self.last_force, self.last_unit, self.last_temp
 
-    def tare(self):
-        self._write('x')
-        sleep(0.1)
-        self._write('1')
-        sleep(0.1)
-        self._write('x')
-        self._update_reading(self.readlines()[-1])
