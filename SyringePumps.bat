@@ -1,1 +1,1 @@
-C:\Users\TIRF\WinPython3\scripts\python.bat syringepump.py
+python syringepump.py
