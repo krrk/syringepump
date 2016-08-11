@@ -1,5 +1,6 @@
 import serial
 import logging
+from time import sleep
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -153,3 +154,40 @@ class Model44(object):
     def set_volume_mode(self):
         self._write('MOD VOL')
         self._read_reply()
+
+class OpenScale(object):
+    def __init__(self, port='COM7'):
+        try:
+            if not port.isOpen():
+                port.open()
+            self.port = port
+        except AttributeError:
+            self.port = serial.Serial(port, baudrate=115200)
+
+        self.port.timeout = 0.1
+        self.tare()
+
+    def _write(self, cmd):
+        cmd = bytes(cmd)
+        logging.debug('write: {}'.format(cmd))
+        self.port.write(cmd)
+
+    def get_reading(self):
+        self._write('0')
+        self._update_reading(self.readline())
+        return self.last_force, self.last_unit, self.last_temp
+
+    def _update_reading(self, line):
+        line = line.decode('utf-8')
+        self.last_timestamp = int(line[0])
+        self.last_force = float(line[1])
+        self.last_unit = line[2]
+        self.last_temp = float(line[3])
+
+    def tare(self):
+        self._write('x')
+        sleep(0.1)
+        self._write('1')
+        sleep(0.1)
+        self._write('x')
+        self._update_reading(self.readlines()[-1])
